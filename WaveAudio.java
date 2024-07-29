@@ -87,6 +87,28 @@ public class WaveAudio implements Audio {
         return bytesToIntParse(4, 8);
     }
 
+     public BufferedInputStream plotWithLines(FileInputStream file) throws IOException {
+        int bytes, cursor, unsigned;
+        BufferedInputStream b = new BufferedInputStream(file);
+            byte[] data = new byte[128];
+            b.skip(44);
+            cursor = 0;
+            while ((bytes = b.read(data)) > 0) {
+                // do something
+                for (int i = 0; i < bytes; i++) {
+                    unsigned = data[i] & 0xFF; // Java..
+                    System.out.println(cursor + " " + unsigned);
+                    cursor++;
+                }
+            }
+            System.out.println("$ javac javaFileName.java\n" +
+                    "$ java javaFileName > data.txt\n" +
+                    "$ gnuplot\n" +
+                    "gnuplot> set size ratio 0.3\n" +
+                    "gnuplot> plot \"data.txt\" with lines");
+        return b;
+    }
+
 
 //    private void readBitsPerSample() {
 //        setWaveHeader(BitsPerSample_2b, String.valueOf(numberParse(34, 36)));
