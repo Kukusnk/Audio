@@ -38,10 +38,11 @@ public class WaveAudio implements Audio {
             audioFormat = new AudioFormat(new AudioFormat.Encoding("IEEE 754"), (float) bytesToIntParse(24, 28), bytesToIntParse(34, 36),
                     bytesToIntParse(22, 24), bytesToIntParse(28, 32), bytesToIntParse(32, 34), false);
         } else {
-            String encoding = "";
-            for (int i = 36; i < 40; i++) {
-                encoding += ((char) data[i]);
-            }
+//            String encoding = "";
+//            for (int i = 20; i < 22; i++) {
+//                encoding += ((char) data[i]);
+//            }
+            String encoding = String.valueOf(bytesToIntParse(20, 22));
             audioFormat = new AudioFormat(new AudioFormat.Encoding(encoding), (float) bytesToIntParse(24, 28), bytesToIntParse(34, 36),
                     bytesToIntParse(22, 24), bytesToIntParse(28, 32), bytesToIntParse(32, 34), false);
         }
