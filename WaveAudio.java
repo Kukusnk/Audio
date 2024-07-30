@@ -1,7 +1,6 @@
 package Parser.audio;
 
 import javax.sound.sampled.AudioFormat;
-import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -36,7 +35,8 @@ public class WaveAudio implements Audio {
 
 
     private AudioFormat audioFormat;
-    private byte[] data;
+    private byte[] audioData;
+    private byte[] headerData;
 
     @Override
     public AudioFormat audioFormat() {
@@ -46,7 +46,9 @@ public class WaveAudio implements Audio {
     public void read(File file) throws IOException {
         if (file.length() > 0) {
             FileInputStream waveFile = new FileInputStream(file);
-            data = waveFile.readAllBytes();
+            headerData = waveFile.readNBytes(44);
+            waveFile.skipNBytes(44);
+            audioData = waveFile.readAllBytes();
             waveFile.close();
         }
         if (!isAvailableIdentifier()) {
@@ -59,7 +61,7 @@ public class WaveAudio implements Audio {
     private int getIntByRange(HeaderRange range) {
         int number, numbers = 0, shift = 0;
         for (int i = range.startByte; i < range.lastByte; i++) {
-            number = Byte.toUnsignedInt(data[i]) << shift;
+            number = Byte.toUnsignedInt(headerData[i]) << shift;
             shift += 8;
             numbers = numbers | number;
         }
@@ -89,8 +91,8 @@ public class WaveAudio implements Audio {
         int j = HEADER_WAVE_BYTE_RANGE.startByte;
         for (int i = HEADER_RIFF_BYTE_RANGE.startByte; i < HEADER_RIFF_BYTE_RANGE.lastByte
                 && j < HEADER_WAVE_BYTE_RANGE.lastByte; i++, j++) {
-            riff += ((char) data[i]);
-            wave += ((char) data[j]);
+            riff += ((char) headerData[i]);
+            wave += ((char) headerData[j]);
         }
         return riff.equals("RIFF") && wave.equals("WAVE");
     }
@@ -102,7 +104,7 @@ public class WaveAudio implements Audio {
     public String getDataBlockID() {
         String dataBlockID = "";
         for (int i = HEADER_DATA_BLOCK_ID_RANGE.startByte; i < HEADER_DATA_BLOCK_ID_RANGE.lastByte; i++) {
-            dataBlockID += ((char) data[i]);
+            dataBlockID += ((char) headerData[i]);
         }
         return dataBlockID;
     }
@@ -114,7 +116,7 @@ public class WaveAudio implements Audio {
     public String getFormatBlockID() {
         String formatBlockID = "";
         for (int i = HEADER_FORMAT_BLOCK_ID_RANGE.startByte; i < HEADER_FORMAT_BLOCK_ID_RANGE.lastByte; i++) {
-            formatBlockID += ((char) data[i]);
+            formatBlockID += ((char) headerData[i]);
         }
         return formatBlockID;
     }
@@ -124,37 +126,41 @@ public class WaveAudio implements Audio {
     }
 
     public void plotWithLines(File file) {
-        int bytes, cursor = 0, unsigned;
+        int cursor = 0, unsigned;
 
-        try {
-            FileInputStream s = new FileInputStream(file);
-            BufferedInputStream b = new BufferedInputStream(s);
-            byte[] data = new byte[128];
-            b.skip(44);
-            while ((bytes = b.read(data)) > 0) {
-                // do something
-                for (int i = 0; i < bytes; i++) {
-                    unsigned = data[i] & 0xFF;
-                    System.out.println(cursor + " " + unsigned);
-                    cursor++;
-                }
-            }
-            System.out.println("$ javac javaFileName.java\n" +
-                    "$ java javaFileName > data.txt\n" +
-                    "$ gnuplot\n" +
-                    "gnuplot> set size ratio 0.3\n" +
-                    "gnuplot> plot \"data.txt\" with lines");
-            b.read(data);
-            b.close();
-        } catch (IOException e) {
-            System.out.println("Yes");
+//        try {
+//            FileInputStream s = new FileInputStream(file);
+//            BufferedInputStream b = new BufferedInputStream(s);
+//            byte[] data = new byte[128];
+//            b.skip(44);
+//            while ((bytes = b.read(data)) > 0) {
+        // do something
+        for (byte audioDatum : audioData) {
+            unsigned = audioDatum & 0xFF;
+            System.out.println(cursor + " " + unsigned);
+            cursor++;
         }
+        // }
+//            System.out.println("$ javac javaFileName.java\n" +
+//                    "$ java javaFileName > data.txt\n" +
+//                    "$ gnuplot\n" +
+//                    "gnuplot> set size ratio 0.3\n" +
+//                    "gnuplot> plot \"data.txt\" with lines");
+//            b.read(data);
+//            b.close();
+//        } catch (IOException e) {
+//            System.out.println("Yes");
+//        }
 
 
     }
 
     @Override
     public byte[] data() {
-        return data;
+        return headerData;
+    }
+
+    public byte[] audioData() {
+        return audioData;
     }
 }
