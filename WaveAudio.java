@@ -1,26 +1,64 @@
+package Parser.audio;
+
 import javax.sound.sampled.AudioFormat;
+import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 
 public class WaveAudio implements Audio {
+
+    class HeaderRange {
+        public int startByte;
+        public int lastByte;
+
+        public HeaderRange(int startByte, int lastByte) {
+            this.startByte = startByte;
+            this.lastByte = lastByte;
+        }
+    }
+
+
+    private final HeaderRange HEADER_ENCODING_BYTE_RANGE = new HeaderRange(20, 22);
+    private final HeaderRange HEADER_SAMPLE_RATE_BYTE_RANGE = new HeaderRange(24, 28);
+    private final HeaderRange HEADER_SAMPLE_SIZE_IN_BITS_RANGE = new HeaderRange(34, 36);
+    private final HeaderRange HEADER_CHANNELS_BYTE_RANGE = new HeaderRange(22, 24);
+    private final HeaderRange HEADER_FRAME_SIZE_RANGE = new HeaderRange(32, 34);
+    private final HeaderRange HEADER_FRAME_RATE_RANGE = new HeaderRange(28, 32);
+
+    private final HeaderRange HEADER_RIFF_BYTE_RANGE = new HeaderRange(0, 4);
+    private final HeaderRange HEADER_WAVE_BYTE_RANGE = new HeaderRange(8, 12);
+    private final HeaderRange HEADER_DATA_SIZE_RANGE = new HeaderRange(40, 44);
+    private final HeaderRange HEADER_BLOCK_SIZE_RANGE = new HeaderRange(16, 20);
+    private final HeaderRange HEADER_FILE_SIZE_RANGE = new HeaderRange(4, 8);
+    private final HeaderRange HEADER_DATA_BLOCK_ID_RANGE = new HeaderRange(36, 40);
+    private final HeaderRange HEADER_FORMAT_BLOCK_ID_RANGE = new HeaderRange(12, 16);
+
+
     private AudioFormat audioFormat;
     private byte[] data;
+
+    @Override
+    public AudioFormat audioFormat() {
+        return audioFormat;
+    }
 
     public void read(File file) throws IOException {
         if (file.length() > 0) {
             FileInputStream waveFile = new FileInputStream(file);
             data = waveFile.readAllBytes();
+            waveFile.close();
         }
         if (!isAvailableIdentifier()) {
             System.out.println("Invalid Identifier");
             System.exit(0);
         }
+        audioFormat = parseAudioFormat();
     }
 
-    private int bytesToIntParse(int start, int end) {
+    private int getIntByRange(HeaderRange range) {
         int number, numbers = 0, shift = 0;
-        for (int i = start; i < end; i++) {
+        for (int i = range.startByte; i < range.lastByte; i++) {
             number = Byte.toUnsignedInt(data[i]) << shift;
             shift += 8;
             numbers = numbers | number;
@@ -28,32 +66,29 @@ public class WaveAudio implements Audio {
         return numbers;
     }
 
-    @Override
-    public AudioFormat audioFormat() {
+    private AudioFormat parseAudioFormat() {
 
-        if (bytesToIntParse(20, 22) == 1) {
-            audioFormat = new AudioFormat(AudioFormat.Encoding.PCM_UNSIGNED, (float) bytesToIntParse(24, 28), bytesToIntParse(34, 36),
-                    bytesToIntParse(22, 24), bytesToIntParse(28, 32), bytesToIntParse(32, 34), false);
-        } else if (bytesToIntParse(20, 22) == 3) {
-            audioFormat = new AudioFormat(new AudioFormat.Encoding("IEEE 754"), (float) bytesToIntParse(24, 28), bytesToIntParse(34, 36),
-                    bytesToIntParse(22, 24), bytesToIntParse(28, 32), bytesToIntParse(32, 34), false);
+        AudioFormat af;
+        if (getIntByRange(HEADER_ENCODING_BYTE_RANGE) == 1) {
+            af = new AudioFormat(AudioFormat.Encoding.PCM_SIGNED, (float) getIntByRange(HEADER_SAMPLE_RATE_BYTE_RANGE), /*BitsPerSample*/ getIntByRange(HEADER_SAMPLE_SIZE_IN_BITS_RANGE),
+                    getIntByRange(HEADER_CHANNELS_BYTE_RANGE), /*BytePerBloc*/ getIntByRange(HEADER_FRAME_SIZE_RANGE), /*BytePerSec*/ getIntByRange(HEADER_FRAME_RATE_RANGE), true);
+        } else if (getIntByRange(HEADER_ENCODING_BYTE_RANGE) == 3) {
+            af = new AudioFormat(AudioFormat.Encoding.PCM_FLOAT, (float) getIntByRange(HEADER_SAMPLE_RATE_BYTE_RANGE), /*BitsPerSample*/ getIntByRange(HEADER_SAMPLE_SIZE_IN_BITS_RANGE),
+                    getIntByRange(HEADER_CHANNELS_BYTE_RANGE), /*BytePerBloc*/ getIntByRange(HEADER_FRAME_SIZE_RANGE), /*BytePerSec*/ getIntByRange(HEADER_FRAME_RATE_RANGE), true);
         } else {
-//            String encoding = "";
-//            for (int i = 20; i < 22; i++) {
-//                encoding += ((char) data[i]);
-//            }
-            String encoding = String.valueOf(bytesToIntParse(20, 22));
-            audioFormat = new AudioFormat(new AudioFormat.Encoding(encoding), (float) bytesToIntParse(24, 28), bytesToIntParse(34, 36),
-                    bytesToIntParse(22, 24), bytesToIntParse(28, 32), bytesToIntParse(32, 34), false);
+            String encoding = String.valueOf(getIntByRange(HEADER_ENCODING_BYTE_RANGE));
+            af = new AudioFormat(new AudioFormat.Encoding(encoding), (float) getIntByRange(HEADER_SAMPLE_RATE_BYTE_RANGE), /*BitsPerSample*/ getIntByRange(HEADER_SAMPLE_SIZE_IN_BITS_RANGE),
+                    getIntByRange(HEADER_CHANNELS_BYTE_RANGE), /*BytePerBloc*/ getIntByRange(HEADER_FRAME_SIZE_RANGE), /*BytePerSec*/ getIntByRange(HEADER_FRAME_RATE_RANGE), true);
         }
-        return audioFormat;
+        return af;
     }
 
     private boolean isAvailableIdentifier() {
         String riff = "";
         String wave = "";
-        int j = 8;
-        for (int i = 0; i < 4 && j < 12; i++, j++) {
+        int j = HEADER_WAVE_BYTE_RANGE.startByte;
+        for (int i = HEADER_RIFF_BYTE_RANGE.startByte; i < HEADER_RIFF_BYTE_RANGE.lastByte
+                && j < HEADER_WAVE_BYTE_RANGE.lastByte; i++, j++) {
             riff += ((char) data[i]);
             wave += ((char) data[j]);
         }
@@ -61,31 +96,31 @@ public class WaveAudio implements Audio {
     }
 
     public int getDataSize() {
-        return bytesToIntParse(40, 44);
+        return getIntByRange(HEADER_DATA_SIZE_RANGE);
     }
 
-    private String getDataBlockID() {
+    public String getDataBlockID() {
         String dataBlockID = "";
-        for (int i = 36; i < 40; i++) {
+        for (int i = HEADER_DATA_BLOCK_ID_RANGE.startByte; i < HEADER_DATA_BLOCK_ID_RANGE.lastByte; i++) {
             dataBlockID += ((char) data[i]);
         }
         return dataBlockID;
     }
 
-    private int getBlockSize() {
-        return bytesToIntParse(16, 20);
+    public int getBlockSize() {
+        return getIntByRange(HEADER_BLOCK_SIZE_RANGE);
     }
 
-    private String getFormatBlockID() {
+    public String getFormatBlockID() {
         String formatBlockID = "";
-        for (int i = 12; i < 16; i++) {
+        for (int i = HEADER_FORMAT_BLOCK_ID_RANGE.startByte; i < HEADER_FORMAT_BLOCK_ID_RANGE.lastByte; i++) {
             formatBlockID += ((char) data[i]);
         }
         return formatBlockID;
     }
 
-    private int getFileSize() {
-        return bytesToIntParse(4, 8);
+    public int getFileSize() {
+        return getIntByRange(HEADER_FILE_SIZE_RANGE);
     }
 
     public void plotWithLines(File file) {
@@ -117,40 +152,6 @@ public class WaveAudio implements Audio {
 
 
     }
-
-
-
-//    private void readBitsPerSample() {
-//        setWaveHeader(BitsPerSample_2b, String.valueOf(numberParse(34, 36)));
-//    }
-
-//    private void readBytePerBlock() {
-//        setWaveHeader(BytePerBlock_2b, String.valueOf(numberParse(32, 34)));
-//    }
-
-//    private void readBytePerSec() {
-//        setWaveHeader(BytePerSec, String.valueOf(numberParse(28, 32)));
-//    }
-
-//    private void readFrequence() {
-//        setWaveHeader(Frequence, String.valueOf(numberParse(24, 28)));
-//    }
-
-//    private void readNbrChannels() {
-//        setWaveHeader(NbrChannels_2b, String.valueOf(numberParse(22, 24)));
-//    }
-
-//    private void readRiffId() {
-//        setWaveHeader(FileTypeBlockID, stringParse(0, 4));
-//        str = "";
-//    }
-
-
-//    private void readFileFormatID() {
-//        setWaveHeader(FileFormatID, stringParse(8, 12));
-//        str = "";
-//    }
-
 
     @Override
     public byte[] data() {
