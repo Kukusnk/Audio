@@ -69,20 +69,31 @@ public class WaveAudio implements Audio {
     }
 
     private AudioFormat parseAudioFormat() {
-
-        AudioFormat af;
-        if (getIntByRange(HEADER_ENCODING_BYTE_RANGE) == 1) {
-            af = new AudioFormat(AudioFormat.Encoding.PCM_SIGNED, (float) getIntByRange(HEADER_SAMPLE_RATE_BYTE_RANGE), /*BitsPerSample*/ getIntByRange(HEADER_SAMPLE_SIZE_IN_BITS_RANGE),
-                    getIntByRange(HEADER_CHANNELS_BYTE_RANGE), /*BytePerBloc*/ getIntByRange(HEADER_FRAME_SIZE_RANGE), /*BytePerSec*/ getIntByRange(HEADER_FRAME_RATE_RANGE), true);
+        String encoding = "";
+        if (getIntByRange(HEADER_ENCODING_BYTE_RANGE) == 1 && getIntByRange(HEADER_SAMPLE_SIZE_IN_BITS_RANGE) == 8) {
+            encoding = "PCM_UNSIGNED";
+        } else if (getIntByRange(HEADER_ENCODING_BYTE_RANGE) == 1 && getIntByRange(HEADER_SAMPLE_SIZE_IN_BITS_RANGE) == 16) {
+            encoding = "PCM_SIGNED";
         } else if (getIntByRange(HEADER_ENCODING_BYTE_RANGE) == 3) {
-            af = new AudioFormat(AudioFormat.Encoding.PCM_FLOAT, (float) getIntByRange(HEADER_SAMPLE_RATE_BYTE_RANGE), /*BitsPerSample*/ getIntByRange(HEADER_SAMPLE_SIZE_IN_BITS_RANGE),
-                    getIntByRange(HEADER_CHANNELS_BYTE_RANGE), /*BytePerBloc*/ getIntByRange(HEADER_FRAME_SIZE_RANGE), /*BytePerSec*/ getIntByRange(HEADER_FRAME_RATE_RANGE), true);
-        } else {
-            String encoding = String.valueOf(getIntByRange(HEADER_ENCODING_BYTE_RANGE));
-            af = new AudioFormat(new AudioFormat.Encoding(encoding), (float) getIntByRange(HEADER_SAMPLE_RATE_BYTE_RANGE), /*BitsPerSample*/ getIntByRange(HEADER_SAMPLE_SIZE_IN_BITS_RANGE),
-                    getIntByRange(HEADER_CHANNELS_BYTE_RANGE), /*BytePerBloc*/ getIntByRange(HEADER_FRAME_SIZE_RANGE), /*BytePerSec*/ getIntByRange(HEADER_FRAME_RATE_RANGE), true);
+            encoding = "PCM_FLOAT";
+        } else if (getIntByRange(HEADER_ENCODING_BYTE_RANGE) == 6) {
+            encoding = "ALAW";
+        } else if (getIntByRange(HEADER_ENCODING_BYTE_RANGE) == 7) {
+            encoding = "ULAW";
         }
-        return af;
+//        if (getIntByRange(HEADER_ENCODING_BYTE_RANGE) == 1) {
+//            af = new AudioFormat(AudioFormat.Encoding.PCM_SIGNED, (float) getIntByRange(HEADER_SAMPLE_RATE_BYTE_RANGE), /*BitsPerSample*/ getIntByRange(HEADER_SAMPLE_SIZE_IN_BITS_RANGE),
+//                    getIntByRange(HEADER_CHANNELS_BYTE_RANGE), /*BytePerBloc*/ getIntByRange(HEADER_FRAME_SIZE_RANGE), /*BytePerSec*/ getIntByRange(HEADER_FRAME_RATE_RANGE), true);
+//        } else if (getIntByRange(HEADER_ENCODING_BYTE_RANGE) == 3) {
+//            af = new AudioFormat(AudioFormat.Encoding.PCM_FLOAT, (float) getIntByRange(HEADER_SAMPLE_RATE_BYTE_RANGE), /*BitsPerSample*/ getIntByRange(HEADER_SAMPLE_SIZE_IN_BITS_RANGE),
+//                    getIntByRange(HEADER_CHANNELS_BYTE_RANGE), /*BytePerBloc*/ getIntByRange(HEADER_FRAME_SIZE_RANGE), /*BytePerSec*/ getIntByRange(HEADER_FRAME_RATE_RANGE), true);
+//        } else {
+//            String encoding = String.valueOf(getIntByRange(HEADER_ENCODING_BYTE_RANGE));
+//            af = new AudioFormat(new AudioFormat.Encoding(encoding), (float) getIntByRange(HEADER_SAMPLE_RATE_BYTE_RANGE), /*BitsPerSample*/ getIntByRange(HEADER_SAMPLE_SIZE_IN_BITS_RANGE),
+//                    getIntByRange(HEADER_CHANNELS_BYTE_RANGE), /*BytePerBloc*/ getIntByRange(HEADER_FRAME_SIZE_RANGE), /*BytePerSec*/ getIntByRange(HEADER_FRAME_RATE_RANGE), true);
+//        }
+        return new AudioFormat(new AudioFormat.Encoding(encoding), (float) getIntByRange(HEADER_SAMPLE_RATE_BYTE_RANGE), /*BitsPerSample*/ getIntByRange(HEADER_SAMPLE_SIZE_IN_BITS_RANGE),
+                getIntByRange(HEADER_CHANNELS_BYTE_RANGE), /*BytePerBloc*/ getIntByRange(HEADER_FRAME_SIZE_RANGE), /*BytePerSec*/(float) getIntByRange(HEADER_FRAME_RATE_RANGE), false);
     }
 
     private boolean isAvailableIdentifier() {
